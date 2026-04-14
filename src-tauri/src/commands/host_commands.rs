@@ -1,5 +1,4 @@
 use crate::models::host::HostConfig;
-use crate::db;
 use tauri::State;
 use std::sync::Mutex;
 
@@ -60,5 +59,37 @@ pub fn add_host(db_conn: State<Mutex<rusqlite::Connection>>, host: HostConfig) -
             host.updated_at,
         ],
     ).unwrap();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_host(db_conn: State<Mutex<rusqlite::Connection>>, host: HostConfig) -> Result<(), String> {
+    let conn = db_conn.lock().unwrap();
+    let tags_str = host.tags.map(|t| serde_json::to_string(&t).unwrap());
+
+    conn.execute(
+        "UPDATE hosts SET name = ?1, host = ?2, port = ?3, user = ?4, auth_type = ?5, identity_file = ?6, group_id = ?7, tags = ?8, color = ?9, notes = ?10, updated_at = ?11 WHERE id = ?12",
+        rusqlite::params![
+            host.name,
+            host.host,
+            host.port,
+            host.user,
+            host.auth_type,
+            host.identity_file,
+            host.group,
+            tags_str,
+            host.color,
+            host.notes,
+            host.updated_at,
+            host.id,
+        ],
+    ).unwrap();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_host(db_conn: State<Mutex<rusqlite::Connection>>, id: String) -> Result<(), String> {
+    let conn = db_conn.lock().unwrap();
+    conn.execute("DELETE FROM hosts WHERE id = ?1", rusqlite::params![id]).unwrap();
     Ok(())
 }

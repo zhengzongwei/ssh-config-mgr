@@ -18,6 +18,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::host_commands::get_hosts,
             commands::host_commands::add_host,
+            commands::host_commands::update_host,
+            commands::host_commands::delete_host,
+            commands::group_commands::get_groups,
+            commands::group_commands::add_group,
+            commands::group_commands::update_group,
+            commands::group_commands::delete_group,
+            commands::sync_commands::sync_ssh_config,
         ])
         .run(context)
         .expect("error while running tauri application");
