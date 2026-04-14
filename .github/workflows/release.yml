@@ -107,32 +107,33 @@ jobs:
         shell: bash
         run: |
           RAW_TAG="${{ github.ref_name }}"
-          VERSION="${RAW_TAG#v}"          # 0.0.1-beta.1
-          SEMVER="${VERSION%%-*}"          # 0.0.1
+          VERSION="${RAW_TAG#v}"           # 0.0.1-beta.1
+          SEMVER="${VERSION%%-*}"           # 0.0.1
+          # 写入 GITHUB_ENV 供后续 step 使用
           echo "APP_VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "SEMVER=${SEMVER}"       >> $GITHUB_ENV
-          # 用 Node.js 更新所有文件（跨平台，避免 BSD/GNU sed 差异）
-          node << 'SCRIPT'
-          const fs = require('fs');
-          const version = process.env.SEMVER;
+          # 用 Node.js 直接内联接受参数，避免 export/环境变量问题
+          node -e "
+            const fs = require('fs');
+            const semver = '${SEMVER}';
+            const version = '${VERSION}';
 
-          // package.json
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          pkg.version = version;
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            // package.json
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = semver;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 
-          // tauri.conf.json
-          const tauri = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-          tauri.version = version;
-          fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(tauri, null, 2) + '\n');
+            // tauri.conf.json
+            const tauri = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            tauri.version = semver;
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(tauri, null, 2) + '\n');
 
-          // Cargo.toml — 只替换 [package] 段的 version 行
-          let cargo = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
-          cargo = cargo.replace(/^version = ".*"/m, `version = "${version}"`);
-          fs.writeFileSync('src-tauri/Cargo.toml', cargo);
+            // Cargo.toml
+            let cargo = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+            cargo = cargo.replace(/^version = \".*\"/m, 'version = \"' + semver + '\"');
+            fs.writeFileSync('src-tauri/Cargo.toml', cargo);
 
-          console.log(`Version set to ${version}`);
-          SCRIPT
+            console.log('Version set to', version, '(semver:', semver + ')');
+          "
 
       # ── 构建 & 发布到 GitHub Release ───────────────────────────
       - name: Build and publish release
