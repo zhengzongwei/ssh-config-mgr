@@ -15,7 +15,7 @@ pub fn sync_ssh_config(db_conn: State<Mutex<rusqlite::Connection>>) -> Result<St
 
     // First, write hosts that belong to a group
     for group in &groups {
-        let group_hosts: Vec<_> = hosts.iter().filter(|h| h.group.as_deref() == Some(&group.id)).collect();
+        let group_hosts: Vec<_> = hosts.iter().filter(|h| h.group.as_deref() == Some(&group.id) && h.show_in_vscode).collect();
         if group_hosts.is_empty() { continue; }
         config_content.push_str(&format!("# === {} ===\n", group.name));
         for host in group_hosts {
@@ -31,7 +31,7 @@ pub fn sync_ssh_config(db_conn: State<Mutex<rusqlite::Connection>>) -> Result<St
     }
 
     // Then, write hosts that don't belong to any group
-    let ungrouped: Vec<_> = hosts.iter().filter(|h| h.group.is_none()).collect();
+    let ungrouped: Vec<_> = hosts.iter().filter(|h| h.group.is_none() && h.show_in_vscode).collect();
     if !ungrouped.is_empty() {
         config_content.push_str("# === 未分组 ===\n");
         for host in ungrouped {

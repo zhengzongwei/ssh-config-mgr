@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Server, Copy, Terminal, Edit2, Trash2 } from 'lucide-react';
+import { Server, Copy, Terminal, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface HostConfig {
   id: string;
@@ -12,6 +12,7 @@ interface HostConfig {
   identityFile?: string;
   group?: string;
   notes?: string;
+  showInVscode: boolean;
 }
 
 interface MainContentProps {
@@ -26,10 +27,12 @@ const HostCard = ({
   host,
   darkMode,
   onDelete,
+  onUpdate,
 }: {
   host: HostConfig;
   darkMode: boolean;
   onDelete: (id: string) => void;
+  onUpdate: () => void;
 }) => {
   const [hovered, setHovered] = useState(false);
 
@@ -49,6 +52,15 @@ const HostCard = ({
       invoke('delete_host', { id: host.id })
         .then(() => onDelete(host.id))
         .catch(e => alert('删除失败: ' + e));
+    }
+  };
+
+  const handleToggleVscode = async () => {
+    try {
+      await invoke('set_host_vscode', { id: host.id, show: !host.showInVscode });
+      onUpdate();
+    } catch (e) {
+      alert('更新失败: ' + e);
     }
   };
 
@@ -116,6 +128,30 @@ const HostCard = ({
           {host.notes}
         </div>
       )}
+
+      {/* VS Code 可见性开关 */}
+      <div
+        onClick={handleToggleVscode}
+        title={host.showInVscode ? '当前在 VS Code Remote SSH 中显示 · 点击隐藏' : '已从 VS Code Remote SSH 隐藏 · 点击显示'}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
+          cursor: 'pointer', userSelect: 'none',
+          background: host.showInVscode
+            ? (darkMode ? '#1e3a2e' : '#f0fdf4')
+            : (darkMode ? '#1f1f1f' : '#f3f4f6'),
+          color: host.showInVscode ? '#16a34a' : (darkMode ? '#4b5563' : '#9ca3af'),
+          border: `1px solid ${host.showInVscode ? '#86efac' : (darkMode ? '#374151' : '#e5e7eb')}`,
+          transition: 'all 0.15s',
+          alignSelf: 'flex-start',
+        }}
+      >
+        {host.showInVscode
+          ? <Eye size={11} color="#16a34a" />
+          : <EyeOff size={11} color={darkMode ? '#4b5563' : '#9ca3af'} />
+        }
+        VS Code {host.showInVscode ? '显示中' : '已隐藏'}
+      </div>
 
       {/* 操作按钮 */}
       <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
@@ -188,6 +224,7 @@ const MainContent = ({ darkMode, searchQuery, selectedGroupId, refreshTrigger, o
                 host={host}
                 darkMode={darkMode}
                 onDelete={() => { loadHosts(); onRefresh(); }}
+                onUpdate={() => { loadHosts(); onRefresh(); }}
               />
             ))}
           </div>

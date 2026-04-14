@@ -62,6 +62,10 @@ pub fn update_group(db_conn: State<Mutex<rusqlite::Connection>>, group: Group) -
 #[tauri::command]
 pub fn delete_group(db_conn: State<Mutex<rusqlite::Connection>>, id: String) -> Result<(), String> {
     let conn = db_conn.lock().unwrap();
-    conn.execute("DELETE FROM groups WHERE id = ?1", rusqlite::params![id]).unwrap();
+    // First, ungroup all hosts that belong to this group
+    conn.execute("UPDATE hosts SET group_id = NULL WHERE group_id = ?1", rusqlite::params![id])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM groups WHERE id = ?1", rusqlite::params![id])
+        .map_err(|e| e.to_string())?;
     Ok(())
 }

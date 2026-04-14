@@ -35,5 +35,11 @@ pub fn initialize_database() -> Result<Connection> {
         [],
     )?;
 
+    // Migration: add show_in_vscode column to existing DBs (ignore error if already exists)
+    let _ = conn.execute(
+        "ALTER TABLE hosts ADD COLUMN show_in_vscode INTEGER NOT NULL DEFAULT 1",
+        [],
+    );
+
     Ok(conn)
 }

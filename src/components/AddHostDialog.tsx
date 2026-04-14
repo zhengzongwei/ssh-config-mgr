@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { X, Server } from 'lucide-react';
+
+interface Group {
+  id: string;
+  name: string;
+}
 
 interface AddHostDialogProps {
   open: boolean;
@@ -17,10 +22,18 @@ const AddHostDialog = ({ open, onClose, onSuccess, darkMode }: AddHostDialogProp
     user: 'root',
     authType: 'key',
     identityFile: '',
+    group: '',
     notes: '',
   });
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      invoke<Group[]>('get_groups').then(setGroups).catch(console.error);
+    }
+  }, [open]);
 
   if (!open) return null;
 
@@ -69,7 +82,7 @@ const AddHostDialog = ({ open, onClose, onSuccess, darkMode }: AddHostDialogProp
           user: form.user.trim(),
           authType: form.authType,
           identityFile: form.identityFile.trim() || null,
-          group: null,
+          group: form.group || null,
           tags: null,
           color: null,
           notes: form.notes.trim() || null,
@@ -78,7 +91,7 @@ const AddHostDialog = ({ open, onClose, onSuccess, darkMode }: AddHostDialogProp
           updatedAt: now,
         }
       });
-      setForm({ name: '', host: '', port: '22', user: 'root', authType: 'key', identityFile: '', notes: '' });
+      setForm({ name: '', host: '', port: '22', user: 'root', authType: 'key', identityFile: '', group: '', notes: '' });
       onSuccess();
       onClose();
     } catch (e) {
@@ -188,6 +201,20 @@ const AddHostDialog = ({ open, onClose, onSuccess, darkMode }: AddHostDialogProp
               <option value="key">SSH 密钥</option>
               <option value="password">密码</option>
               <option value="agent">SSH Agent</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={labelStyle}>所属分组</label>
+            <select
+              style={{ ...inputStyle, appearance: 'none' }}
+              value={form.group}
+              onChange={e => setForm(f => ({ ...f, group: e.target.value }))}
+            >
+              <option value="">-- 不分组 --</option>
+              {groups.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
             </select>
           </div>
 

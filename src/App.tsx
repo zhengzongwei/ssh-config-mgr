@@ -130,10 +130,9 @@ function App() {
             background: darkMode ? '#2d3748' : '#f1f5f9',
             borderRadius: '8px',
             border: `1px solid ${darkMode ? '#4a5568' : '#e2e8f0'}`,
-            color: 'inherit',
           }}
         >
-          {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+          {darkMode ? <Sun size={16} color="#f59e0b" /> : <Moon size={16} color="#475569" />}
         </button>
 
         <button
@@ -147,7 +146,7 @@ function App() {
             color: 'inherit',
           }}
         >
-          <Settings size={16} />
+          <Settings size={16} color={darkMode ? '#94a3b8' : '#475569'} />
         </button>
       </div>
 
@@ -158,6 +157,7 @@ function App() {
           selectedGroupId={selectedGroupId}
           onSelectGroup={setSelectedGroupId}
           refreshTrigger={refreshTrigger}
+          onGroupChange={handleHostAdded}
         />
         <MainContent
           darkMode={darkMode}

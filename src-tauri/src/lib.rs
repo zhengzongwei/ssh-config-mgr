@@ -20,11 +20,13 @@ pub fn run() {
             commands::host_commands::add_host,
             commands::host_commands::update_host,
             commands::host_commands::delete_host,
+            commands::host_commands::set_host_vscode,
             commands::group_commands::get_groups,
             commands::group_commands::add_group,
             commands::group_commands::update_group,
             commands::group_commands::delete_group,
             commands::sync_commands::sync_ssh_config,
+            commands::import_commands::import_ssh_config,
         ])
         .run(context)
         .expect("error while running tauri application");

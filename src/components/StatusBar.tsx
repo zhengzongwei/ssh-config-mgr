@@ -38,11 +38,11 @@ const StatusBar = ({ darkMode, refreshTrigger }: StatusBarProps) => {
       borderTop: `1px solid ${border}`,
       fontSize: '12px',
     }}>
-      <Item icon={<Server size={13} />} label={`${hostCount} 台主机`} />
-      <Item icon={<Folder size={13} />} label={`${groupCount} 个分组`} />
+      <Item icon={<Server size={13} color={color} />} label={`${hostCount} 台主机`} />
+      <Item icon={<Folder size={13} color={color} />} label={`${groupCount} 个分组`} />
       <Item icon={<CheckCircle size={13} color="#10b981" />} label="已就绪" />
       <div style={{ flex: 1 }} />
-      <Item icon={<Clock size={13} />} label={lastSync} />
+      <Item icon={<Clock size={13} color={color} />} label={lastSync} />
     </div>
   );
 };
