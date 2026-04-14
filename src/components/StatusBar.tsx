@@ -43,6 +43,17 @@ const StatusBar = ({ darkMode, refreshTrigger }: StatusBarProps) => {
       <Item icon={<CheckCircle size={13} color="#10b981" />} label="已就绪" />
       <div style={{ flex: 1 }} />
       <Item icon={<Clock size={13} color={color} />} label={lastSync} />
+      <div style={{
+        fontSize: '11px',
+        color: darkMode ? '#374151' : '#cbd5e1',
+        borderLeft: `1px solid ${border}`,
+        paddingLeft: '12px',
+        marginLeft: '4px',
+        fontFamily: 'monospace',
+        letterSpacing: '0.03em',
+      }}>
+        v{__APP_VERSION__}-beta · {__GIT_COMMIT__}
+      </div>
     </div>
   );
 };

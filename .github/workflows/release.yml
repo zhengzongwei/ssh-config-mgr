@@ -102,11 +102,31 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      # ── 从 tag 中提取版本号并注入到各版本文件 ─────────────────
+      - name: Set version from tag
+        shell: bash
+        run: |
+          # tag 格式: v0.0.1-beta.1 → 去掉前缀 v → 0.0.1-beta.1
+          # Tauri/Cargo 只接受 semver，取主版本部分 0.0.1
+          RAW_TAG="${{ github.ref_name }}"
+          VERSION="${RAW_TAG#v}"                          # 0.0.1-beta.1
+          SEMVER="${VERSION%%-*}"                         # 0.0.1（去掉预发布标识）
+          echo "APP_VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "SEMVER=${SEMVER}"       >> $GITHUB_ENV
+          # 更新 package.json 版本
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json','utf8')); p.version='${SEMVER}'; fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          # 更新 tauri.conf.json 版本
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json','utf8')); p.version='${SEMVER}'; fs.writeFileSync('src-tauri/tauri.conf.json',JSON.stringify(p,null,2)+'\n')"
+          # 更新 Cargo.toml 版本
+          sed -i "s/^version = \".*\"/version = \"${SEMVER}\"/" src-tauri/Cargo.toml
+          echo "Version set to ${VERSION} (semver: ${SEMVER})"
+
       # ── 构建 & 发布到 GitHub Release ───────────────────────────
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_VERSION: ${{ env.APP_VERSION }}
           TAURI_SIGNING_PRIVATE_KEY: ''
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
