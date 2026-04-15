@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { ServerIcon, CopyIcon, TerminalIcon, EditIcon, TrashIcon, EyeIcon, EyeOffIcon } from './Icons';
+import { t, getSystemLanguage } from '../i18n';
 
 interface HostConfig {
   id: string;
@@ -39,19 +40,19 @@ const HostCard = ({
   const cardBg = darkMode ? '#1e2a3a' : '#ffffff';
   const cardBorder = darkMode ? '#2d3748' : '#e2e8f0';
   const cardShadow = hovered
-    ? '0 4px 16px rgba(79,70,229,0.15)'
-    : '0 1px 4px rgba(0,0,0,0.06)';
+    ? '0 6px 20px rgba(79,70,229,0.15)'
+    : '0 2px 8px rgba(0,0,0,0.06)';
 
   const copySSHCommand = () => {
     const cmd = `ssh ${host.user}@${host.host} -p ${host.port}${host.identityFile ? ` -i ${host.identityFile}` : ''}`;
-    navigator.clipboard.writeText(cmd).then(() => alert(`已复制: ${cmd}`));
+    navigator.clipboard.writeText(cmd).then(() => alert(getSystemLanguage() === 'zh-CN' ? `已复制: ${cmd}` : `Copied: ${cmd}`));
   };
 
   const handleDelete = () => {
-    if (confirm(`确认删除主机 "${host.name}"？`)) {
+    if (confirm(t('confirmDelete'))) {
       invoke('delete_host', { id: host.id })
         .then(() => onDelete(host.id))
-        .catch(e => alert('删除失败: ' + e));
+        .catch(e => alert(getSystemLanguage() === 'zh-CN' ? '删除失败: ' : 'Delete failed: ' + e));
     }
   };
 
@@ -60,12 +61,12 @@ const HostCard = ({
       await invoke('set_host_vscode', { id: host.id, show: !host.showInVscode });
       onUpdate();
     } catch (e) {
-      alert('更新失败: ' + e);
+      alert(getSystemLanguage() === 'zh-CN' ? '更新失败: ' : 'Update failed: ' + e);
     }
   };
 
   const authColor = host.authType === 'key' ? '#10b981' : host.authType === 'password' ? '#f59e0b' : '#6366f1';
-  const authLabel = host.authType === 'key' ? '密钥' : host.authType === 'password' ? '密码' : 'Agent';
+  const authLabel = host.authType === 'key' ? (getSystemLanguage() === 'zh-CN' ? '密钥' : 'Key') : host.authType === 'password' ? (getSystemLanguage() === 'zh-CN' ? '密码' : 'Password') : 'Agent';
 
   return (
     <div
@@ -74,49 +75,49 @@ const HostCard = ({
       style={{
         background: cardBg,
         border: `1px solid ${hovered ? '#4f46e5' : cardBorder}`,
-        borderRadius: '12px',
-        padding: '16px',
+        borderRadius: '16px',
+        padding: '20px',
         boxShadow: cardShadow,
         transition: 'all 0.2s',
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px',
-        minWidth: '230px',
-        maxWidth: '260px',
-        flex: '1 1 230px',
+        gap: '14px',
+        minWidth: '280px',
+        maxWidth: '320px',
+        flex: '1 1 280px',
       }}
     >
       {/* 顶部标题行 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div style={{
-          width: '36px', height: '36px',
+          width: '44px', height: '44px',
           background: darkMode ? '#312e81' : '#eef2ff',
-          borderRadius: '8px',
+          borderRadius: '12px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
-          <ServerIcon size={18} color="#4f46e5" />
+          <ServerIcon size={22} color="#4f46e5" />
         </div>
         <div style={{ overflow: 'hidden' }}>
-          <div style={{ fontWeight: 600, fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontWeight: 600, fontSize: '17px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {host.name}
           </div>
-          <div style={{ fontSize: '12px', color: darkMode ? '#94a3b8' : '#64748b' }}>
+          <div style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#64748b' }}>
             {host.host}:{host.port}
           </div>
         </div>
       </div>
 
       {/* 信息行 */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <span style={{
-          padding: '2px 8px', borderRadius: '99px', fontSize: '12px',
+          padding: '4px 12px', borderRadius: '99px', fontSize: '13px',
           background: darkMode ? '#1e3a2e' : '#f0fdf4', color: '#16a34a', border: '1px solid #86efac'
         }}>
           {host.user}
         </span>
         <span style={{
-          padding: '2px 8px', borderRadius: '99px', fontSize: '12px',
+          padding: '4px 12px', borderRadius: '99px', fontSize: '13px',
           background: darkMode ? '#2a1f14' : '#fffbeb', color: authColor, border: `1px solid ${authColor}44`
         }}>
           {authLabel}
@@ -124,7 +125,7 @@ const HostCard = ({
       </div>
 
       {host.notes && (
-        <div style={{ fontSize: '12px', color: darkMode ? '#94a3b8' : '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {host.notes}
         </div>
       )}
@@ -132,10 +133,13 @@ const HostCard = ({
       {/* VS Code 可见性开关 */}
       <div
         onClick={handleToggleVscode}
-        title={host.showInVscode ? '当前在 VS Code Remote SSH 中显示 · 点击隐藏' : '已从 VS Code Remote SSH 隐藏 · 点击显示'}
+        title={host.showInVscode
+          ? (getSystemLanguage() === 'zh-CN' ? '当前在 VS Code Remote SSH 中显示 · 点击隐藏' : 'Visible in VS Code Remote SSH · Click to hide')
+          : (getSystemLanguage() === 'zh-CN' ? '已从 VS Code Remote SSH 隐藏 · 点击显示' : 'Hidden from VS Code Remote SSH · Click to show')
+        }
         style={{
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          padding: '5px 12px', borderRadius: '8px', fontSize: '12px',
           cursor: 'pointer', userSelect: 'none',
           background: host.showInVscode
             ? (darkMode ? '#1e3a2e' : '#f0fdf4')
@@ -147,18 +151,18 @@ const HostCard = ({
         }}
       >
         {host.showInVscode
-          ? <EyeIcon size={11} color="#16a34a" />
-          : <EyeOffIcon size={11} color={darkMode ? '#4b5563' : '#9ca3af'} />
+          ? <EyeIcon size={14} color="#16a34a" />
+          : <EyeOffIcon size={14} color={darkMode ? '#4b5563' : '#9ca3af'} />
         }
-        VS Code {host.showInVscode ? '显示中' : '已隐藏'}
+        VS Code {host.showInVscode ? (getSystemLanguage() === 'zh-CN' ? '显示中' : 'Visible') : (getSystemLanguage() === 'zh-CN' ? '已隐藏' : 'Hidden')}
       </div>
 
       {/* 操作按钮 */}
-      <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-        <ActionButton icon={<TerminalIcon size={14} />} label="启动" color="#4f46e5" darkMode={darkMode} onClick={() => {}} />
-        <ActionButton icon={<CopyIcon size={14} />} label="复制" color="#0ea5e9" darkMode={darkMode} onClick={copySSHCommand} />
-        <ActionButton icon={<EditIcon size={14} />} label="编辑" color="#f59e0b" darkMode={darkMode} onClick={() => {}} />
-        <ActionButton icon={<TrashIcon size={14} />} label="删除" color="#ef4444" darkMode={darkMode} onClick={handleDelete} />
+      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+        <ActionButton icon={<TerminalIcon size={16} />} label={t('launch')} color="#4f46e5" darkMode={darkMode} onClick={() => {}} />
+        <ActionButton icon={<CopyIcon size={16} />} label={t('copy')} color="#0ea5e9" darkMode={darkMode} onClick={copySSHCommand} />
+        <ActionButton icon={<EditIcon size={16} />} label={t('edit')} color="#f59e0b" darkMode={darkMode} onClick={() => {}} />
+        <ActionButton icon={<TrashIcon size={16} />} label={t('delete')} color="#ef4444" darkMode={darkMode} onClick={handleDelete} />
       </div>
     </div>
   );
@@ -176,8 +180,8 @@ const ActionButton = ({ icon, label, color, darkMode, onClick }: {
       onMouseLeave={() => setHov(false)}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flex: 1, padding: '6px 4px', borderRadius: '7px', gap: '4px',
-        fontSize: '12px', fontWeight: 500,
+        flex: 1, padding: '10px 6px', borderRadius: '10px', gap: '6px',
+        fontSize: '13px', fontWeight: 500,
         background: hov ? `${color}18` : darkMode ? '#2d3748' : '#f8fafc',
         color: hov ? color : darkMode ? '#94a3b8' : '#64748b',
         border: `1px solid ${hov ? color + '44' : darkMode ? '#374151' : '#e2e8f0'}`,
@@ -211,13 +215,13 @@ const MainContent = ({ darkMode, searchQuery, selectedGroupId, refreshTrigger, o
   const bg = darkMode ? '#0f172a' : '#f8f9fa';
 
   return (
-    <div style={{ flex: 1, background: bg, overflowY: 'auto', padding: '20px' }}>
+    <div style={{ flex: 1, background: bg, overflowY: 'auto', padding: '24px' }}>
       {filtered.length > 0 ? (
         <>
-          <div style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#64748b', marginBottom: '16px' }}>
-            共 {filtered.length} 台主机
+          <div style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#64748b', marginBottom: '20px' }}>
+            {getSystemLanguage() === 'zh-CN' ? `共 ${filtered.length} 台主机` : `${filtered.length} ${filtered.length === 1 ? 'host' : 'hosts'}`}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
             {filtered.map(host => (
               <HostCard
                 key={host.id}
@@ -232,11 +236,11 @@ const MainContent = ({ darkMode, searchQuery, selectedGroupId, refreshTrigger, o
       ) : (
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          height: '100%', gap: '16px', color: darkMode ? '#4b5563' : '#9ca3af',
+          height: '100%', gap: '20px', color: darkMode ? '#4b5563' : '#9ca3af',
         }}>
-          <ServerIcon size={48} strokeWidth={1} />
-          <div style={{ fontSize: '16px', fontWeight: 500 }}>
-            {searchQuery ? '没有找到匹配的主机' : '暂无主机，点击「新增主机」开始添加'}
+          <ServerIcon size={56} strokeWidth={1} />
+          <div style={{ fontSize: '17px', fontWeight: 500 }}>
+            {searchQuery ? t('noHostsFound') : t('noHosts')}
           </div>
         </div>
       )}

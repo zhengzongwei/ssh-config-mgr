@@ -153,8 +153,8 @@ jobs:
 
             | 平台 | 架构 | 文件 |
             |------|------|------|
-            | Windows | x86_64 | `*_x64-setup.exe` 或 `*_x64_en-US.msi` |
-            | Windows | ARM64 | `*_arm64-setup.exe` 或 `*_arm64_en-US.msi` |
+            | Windows | x86_64 | `*_x64-setup.exe` 或 `*_x64.msi` |
+            | Windows | ARM64 | `*_arm64-setup.exe` 或 `*_arm64.msi` |
             | macOS | Intel | `*_x64.dmg` |
             | macOS | Apple Silicon | `*_aarch64.dmg` |
             | Linux | x86_64 | `*_amd64.AppImage` 或 `*_amd64.deb` |

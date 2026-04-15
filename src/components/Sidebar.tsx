@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ServerIcon, FolderIcon, FolderOpenIcon, PlusIcon, TrashIcon } from './Icons';
+import { ServerIcon, FolderIcon, FolderOpenIcon, PlusIcon, TrashIcon, EditIcon } from './Icons';
+import { t, getSystemLanguage } from '../i18n';
 
 interface Group {
   id: string;
@@ -21,11 +22,15 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
   const [groups, setGroups] = useState<Group[]>([]);
   const [hostCount, setHostCount] = useState(0);
   const [addingGroup, setAddingGroup] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupColor, setEditGroupColor] = useState('#4f46e5');
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupColor, setNewGroupColor] = useState('#4f46e5');
   const [savingGroup, setSavingGroup] = useState(false);
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
   const addInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const GROUP_COLORS = [
     '#4f46e5', // 靛蓝
@@ -55,6 +60,12 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
     }
   }, [addingGroup]);
 
+  useEffect(() => {
+    if (editingGroupId && editInputRef.current) {
+      setTimeout(() => editInputRef.current?.focus(), 50);
+    }
+  }, [editingGroupId]);
+
   const handleAddGroup = async () => {
     const name = newGroupName.trim();
     if (!name) { setAddingGroup(false); return; }
@@ -77,7 +88,7 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
       loadGroups();
       onGroupChange?.();
     } catch (e) {
-      alert('创建分组失败: ' + e);
+      alert(t('createGroupFailed') + ': ' + e);
     } finally {
       setSavingGroup(false);
     }
@@ -85,14 +96,49 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
 
   const handleDeleteGroup = async (e: React.MouseEvent, groupId: string) => {
     e.stopPropagation();
-    if (!confirm('确认删除该分组？分组内的主机将变为未分组状态。')) return;
+    if (!confirm(t('confirmDeleteGroup'))) return;
     try {
       await invoke('delete_group', { id: groupId });
       if (selectedGroupId === groupId) onSelectGroup(null);
       loadGroups();
       onGroupChange?.();
     } catch (e) {
-      alert('删除分组失败: ' + e);
+      alert(t('deleteGroupFailed') + ': ' + e);
+    }
+  };
+
+  const startEditGroup = (e: React.MouseEvent, group: Group) => {
+    e.stopPropagation();
+    setEditingGroupId(group.id);
+    setEditGroupName(group.name);
+    setEditGroupColor(group.color || '#4f46e5');
+  };
+
+  const handleUpdateGroup = async () => {
+    if (!editingGroupId) return;
+    const name = editGroupName.trim();
+    if (!name) return;
+
+    setSavingGroup(true);
+    try {
+      await invoke('update_group', {
+        group: {
+          id: editingGroupId,
+          name,
+          parentId: null,
+          icon: null,
+          color: editGroupColor,
+          order: groups.findIndex(g => g.id === editingGroupId),
+          children: null,
+        }
+      });
+      setEditingGroupId(null);
+      loadGroups();
+      onGroupChange?.();
+    } catch (e) {
+      alert(getSystemLanguage() === 'zh-CN' ? '更新分组失败: ' : 'Failed to update group: ' + e);
+    } finally {
+      setSavingGroup(false);
     }
   };
 
@@ -106,11 +152,11 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
   const itemStyle = (active: boolean) => ({
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    borderRadius: '8px',
+    gap: '10px',
+    padding: '10px 14px',
+    borderRadius: '10px',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '15px',
     fontWeight: active ? 600 : 400,
     color: active ? activeColor : 'inherit',
     background: active ? activeBg : 'transparent',
@@ -122,15 +168,15 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
 
   return (
     <div style={{
-      width: '220px',
-      minWidth: '220px',
+      width: '260px',
+      minWidth: '260px',
       background: bg,
       borderRight: `1px solid ${border}`,
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
     }}>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 10px' }}>
         {/* 全部 */}
         <button
           style={itemStyle(selectedGroupId === null)}
@@ -138,137 +184,379 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
           onMouseEnter={e => { if (selectedGroupId !== null) e.currentTarget.style.background = hoverBg; }}
           onMouseLeave={e => { if (selectedGroupId !== null) e.currentTarget.style.background = 'transparent'; }}
         >
-          <ServerIcon size={16} style={{ color: selectedGroupId === null ? activeColor : mutedColor }} />
-          <span style={{ flex: 1 }}>全部主机</span>
+          <ServerIcon size={18} style={{ color: selectedGroupId === null ? activeColor : mutedColor }} />
+          <span style={{ flex: 1 }}>{t('allHosts')}</span>
           <span style={{
-            fontSize: '11px',
-            padding: '2px 6px',
-            borderRadius: '10px',
+            fontSize: '12px',
+            padding: '3px 8px',
+            borderRadius: '12px',
             background: selectedGroupId === null ? (darkMode ? '#312e81' : '#eef2ff') : (darkMode ? '#374151' : '#e5e7eb'),
             color: selectedGroupId === null ? activeColor : mutedColor,
           }}>{hostCount}</span>
         </button>
 
         {/* 分组列表 */}
-        <div style={{ marginTop: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '4px 12px', marginBottom: '2px' }}>
-            <span style={{ flex: 1, fontSize: '11px', fontWeight: 600, color: mutedColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              分组
+        <div style={{ marginTop: '16px' }}>
+          {/* 分组标题 */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 14px',
+            marginBottom: '6px',
+          }}>
+            <span style={{
+              flex: 1,
+              fontSize: '12px',
+              fontWeight: 600,
+              color: mutedColor,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}>
+              {t('groups')}
             </span>
             <button
-              title="新建分组"
+              title={t('createGroup')}
               onClick={() => setAddingGroup(true)}
               style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: '20px', height: '20px', borderRadius: '4px',
-                background: 'transparent', border: 'none',
-                color: mutedColor, cursor: 'pointer',
-                transition: 'background 0.15s, color 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '8px',
+                background: 'transparent',
+                border: 'none',
+                color: mutedColor,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = '#4f46e5'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = mutedColor; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = hoverBg;
+                e.currentTarget.style.color = '#4f46e5';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = mutedColor;
+              }}
             >
-              <PlusIcon size={14} />
+              <PlusIcon size={16} />
             </button>
           </div>
 
-          {/* 内联新建分组输入框 */}
+          {/* 新建分组输入框 */}
           {addingGroup && (
-            <div style={{ padding: '4px 8px' }}>
+            <div style={{
+              padding: '10px',
+              margin: '0 4px 8px',
+              background: darkMode ? '#0f172a' : '#f8fafc',
+              borderRadius: '12px',
+              border: `1px solid ${darkMode ? '#2d3748' : '#e2e8f0'}`,
+            }}>
               <input
                 ref={addInputRef}
                 value={newGroupName}
                 onChange={e => setNewGroupName(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !savingGroup) handleAddGroup();
-                  if (e.key === 'Escape') { setAddingGroup(false); setNewGroupName(''); setNewGroupColor('#4f46e5'); }
+                  if (e.key === 'Escape') {
+                    setAddingGroup(false);
+                    setNewGroupName('');
+                    setNewGroupColor('#4f46e5');
+                  }
                 }}
                 disabled={savingGroup}
-                placeholder={savingGroup ? '创建中...' : '分组名称...'}
+                placeholder={savingGroup
+                  ? (getSystemLanguage() === 'zh-CN' ? '创建中...' : 'Creating...')
+                  : t('groupName') + '...'
+                }
                 style={{
-                  width: '100%', padding: '6px 10px', borderRadius: '7px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
                   border: `1px solid ${newGroupColor}`,
-                  background: darkMode ? '#0f172a' : '#f8fafc',
+                  background: darkMode ? '#1e293b' : '#ffffff',
                   color: darkMode ? '#e2e8f0' : '#1a1a2e',
-                  fontSize: '13px', outline: 'none',
+                  fontSize: '14px',
+                  outline: 'none',
                   boxSizing: 'border-box',
                   opacity: savingGroup ? 0.7 : 1,
                 }}
               />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
-                <span style={{ fontSize: '11px', color: mutedColor }}>颜色：</span>
+              {/* 颜色选择器 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginTop: '10px',
+                flexWrap: 'wrap',
+              }}>
                 {GROUP_COLORS.map(color => (
                   <button
                     key={color}
                     onClick={() => !savingGroup && setNewGroupColor(color)}
                     disabled={savingGroup}
                     style={{
-                      width: '18px', height: '18px', borderRadius: '50%',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '8px',
                       background: color,
-                      border: newGroupColor === color ? '2px solid white' : '2px solid transparent',
-                      boxShadow: newGroupColor === color ? `0 0 0 1px ${color}` : 'none',
-                      cursor: savingGroup ? 'not-allowed' : 'pointer', padding: 0,
+                      border: newGroupColor === color
+                        ? '2px solid white'
+                        : '2px solid transparent',
+                      boxShadow: newGroupColor === color
+                        ? `0 0 0 2px ${color}`
+                        : 'none',
+                      cursor: savingGroup ? 'not-allowed' : 'pointer',
+                      padding: 0,
                       opacity: savingGroup ? 0.5 : 1,
+                      transition: 'transform 0.1s',
+                    }}
+                    onMouseEnter={e => {
+                      if (!savingGroup) e.currentTarget.style.transform = 'scale(1.1)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'scale(1)';
                     }}
                   />
                 ))}
               </div>
-              <div style={{ fontSize: '11px', color: mutedColor, marginTop: '3px', paddingLeft: '2px' }}>
-                {savingGroup ? '创建中...' : 'Enter 确认 · Esc 取消'}
+              {/* 提示文字 */}
+              <div style={{
+                fontSize: '12px',
+                color: mutedColor,
+                marginTop: '8px',
+              }}>
+                {savingGroup
+                  ? (getSystemLanguage() === 'zh-CN' ? '创建中...' : 'Creating...')
+                  : `↵ ${t('enterConfirm')} · Esc ${t('escCancel')}`
+                }
               </div>
             </div>
           )}
 
+          {/* 分组列表 */}
           {groups.map(group => (
-            <div
-              key={group.id}
-              style={{ position: 'relative' }}
-              onMouseEnter={() => setHoveredGroupId(group.id)}
-              onMouseLeave={() => setHoveredGroupId(null)}
-            >
-              <button
-                style={itemStyle(selectedGroupId === group.id)}
-                onClick={() => onSelectGroup(group.id)}
-                onMouseEnter={e => { if (selectedGroupId !== group.id) e.currentTarget.style.background = hoverBg; }}
-                onMouseLeave={e => { if (selectedGroupId !== group.id) e.currentTarget.style.background = 'transparent'; }}
-              >
-                {selectedGroupId === group.id
-                  ? <FolderOpenIcon size={16} style={{ color: group.color || activeColor }} />
-                  : <FolderIcon size={16} style={{ color: group.color || mutedColor }} />
-                }
-                <span style={{
-                  flex: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  color: group.color || 'inherit',
-                }}>{group.name}</span>
-              </button>
-              {/* 删除按钮 */}
-              {hoveredGroupId === group.id && (
-                <button
-                  title="删除分组"
-                  onClick={e => handleDeleteGroup(e, group.id)}
-                  style={{
-                    position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: '20px', height: '20px', borderRadius: '4px',
-                    background: darkMode ? '#2d3748' : '#f1f5f9',
-                    border: '1px solid transparent', color: '#ef4444',
-                    cursor: 'pointer', zIndex: 1,
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#fca5a5'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = darkMode ? '#2d3748' : '#f1f5f9'; e.currentTarget.style.borderColor = 'transparent'; }}
+            <div key={group.id}>
+              {/* 编辑模式 */}
+              {editingGroupId === group.id ? (
+                <div style={{
+                  padding: '10px',
+                  margin: '0 4px 8px',
+                  background: darkMode ? '#0f172a' : '#f8fafc',
+                  borderRadius: '12px',
+                  border: `1px solid ${editGroupColor}`,
+                }}>
+                  <input
+                    ref={editInputRef}
+                    value={editGroupName}
+                    onChange={e => setEditGroupName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !savingGroup) handleUpdateGroup();
+                      if (e.key === 'Escape') setEditingGroupId(null);
+                    }}
+                    disabled={savingGroup}
+                    placeholder={t('groupName') + '...'}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${darkMode ? '#2d3748' : '#e2e8f0'}`,
+                      background: darkMode ? '#1e293b' : '#ffffff',
+                      color: darkMode ? '#e2e8f0' : '#1a1a2e',
+                      fontSize: '14px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      opacity: savingGroup ? 0.7 : 1,
+                    }}
+                  />
+                  {/* 颜色选择器 */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginTop: '10px',
+                    flexWrap: 'wrap',
+                  }}>
+                    {GROUP_COLORS.map(color => (
+                      <button
+                        key={color}
+                        onClick={() => !savingGroup && setEditGroupColor(color)}
+                        disabled={savingGroup}
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '8px',
+                          background: color,
+                          border: editGroupColor === color
+                            ? '2px solid white'
+                            : '2px solid transparent',
+                          boxShadow: editGroupColor === color
+                            ? `0 0 0 2px ${color}`
+                            : 'none',
+                          cursor: savingGroup ? 'not-allowed' : 'pointer',
+                          padding: 0,
+                          opacity: savingGroup ? 0.5 : 1,
+                          transition: 'transform 0.1s',
+                        }}
+                        onMouseEnter={e => {
+                          if (!savingGroup) e.currentTarget.style.transform = 'scale(1.1)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                      />
+                    ))}
+                  </div>
+                  {/* 操作按钮 */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    marginTop: '10px',
+                  }}>
+                    <button
+                      onClick={() => setEditingGroupId(null)}
+                      disabled={savingGroup}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: darkMode ? '#2d3748' : '#e5e7eb',
+                        color: darkMode ? '#e2e8f0' : '#1a1a2e',
+                        border: 'none',
+                        fontSize: '13px',
+                        cursor: savingGroup ? 'not-allowed' : 'pointer',
+                        opacity: savingGroup ? 0.5 : 1,
+                      }}
+                    >
+                      {t('cancel')}
+                    </button>
+                    <button
+                      onClick={handleUpdateGroup}
+                      disabled={savingGroup}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: '#4f46e5',
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '13px',
+                        cursor: savingGroup ? 'not-allowed' : 'pointer',
+                        opacity: savingGroup ? 0.7 : 1,
+                      }}
+                    >
+                      {savingGroup ? (getSystemLanguage() === 'zh-CN' ? '保存中...' : 'Saving...') : t('confirm')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* 普通显示模式 */
+                <div
+                  style={{ position: 'relative' }}
+                  onMouseEnter={() => setHoveredGroupId(group.id)}
+                  onMouseLeave={() => setHoveredGroupId(null)}
                 >
-                  <TrashIcon size={12} />
-                </button>
+                  <button
+                    style={itemStyle(selectedGroupId === group.id)}
+                    onClick={() => onSelectGroup(group.id)}
+                  >
+                    {selectedGroupId === group.id
+                      ? <FolderOpenIcon size={18} style={{ color: group.color || activeColor }} />
+                      : <FolderIcon size={18} style={{ color: group.color || mutedColor }} />
+                    }
+                    <span style={{
+                      flex: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: group.color || 'inherit',
+                    }}>{group.name}</span>
+                  </button>
+                  {/* 操作按钮 */}
+                  {hoveredGroupId === group.id && (
+                    <div style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      display: 'flex',
+                      gap: '6px',
+                      zIndex: 1,
+                    }}>
+                      <button
+                        title={t('edit')}
+                        onClick={e => startEditGroup(e, group)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '26px',
+                          height: '26px',
+                          borderRadius: '8px',
+                          background: darkMode ? '#2d3748' : '#f1f5f9',
+                          border: '1px solid transparent',
+                          color: '#4f46e5',
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = darkMode ? '#312e81' : '#eef2ff';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = darkMode ? '#2d3748' : '#f1f5f9';
+                        }}
+                      >
+                        <EditIcon size={14} />
+                      </button>
+                      <button
+                        title={t('delete')}
+                        onClick={e => handleDeleteGroup(e, group.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '26px',
+                          height: '26px',
+                          borderRadius: '8px',
+                          background: darkMode ? '#2d3748' : '#f1f5f9',
+                          border: '1px solid transparent',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#fef2f2';
+                          e.currentTarget.style.borderColor = '#fca5a5';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = darkMode ? '#2d3748' : '#f1f5f9';
+                          e.currentTarget.style.borderColor = 'transparent';
+                        }}
+                      >
+                        <TrashIcon size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ))}
 
+          {/* 空状态 */}
           {groups.length === 0 && !addingGroup && (
-            <div style={{ fontSize: '12px', color: mutedColor, padding: '6px 12px', fontStyle: 'italic' }}>
-              暂无分组，点击 + 新建
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px 12px',
+              margin: '0 4px',
+              background: darkMode ? '#0f172a' : '#f8fafc',
+              borderRadius: '12px',
+              border: `1px dashed ${darkMode ? '#2d3748' : '#e2e8f0'}`,
+            }}>
+              <FolderIcon size={28} style={{ color: mutedColor, marginBottom: '10px' }} />
+              <span style={{ fontSize: '13px', color: mutedColor }}>
+                {t('noGroups')}
+              </span>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "SSH Config Master",
+  "productName": "ssh-config-mgr",
   "version": "0.0.1",
   "identifier": "com.zhengzongwei.ssh-config-mgr",
   "build": {
@@ -12,9 +12,10 @@
   "app": {
     "windows": [
       {
-        "title": "ssh-config-mgr",
-        "width": 800,
-        "height": 600
+        "title": "SSH Config Master",
+        "width": 1100,
+        "height": 800,
+        "devtools": false
       }
     ],
     "security": {
@@ -30,6 +31,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    }
   }
 }

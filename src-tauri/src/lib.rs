@@ -32,6 +32,8 @@ pub fn run() {
             commands::export_commands::export_toml,
             commands::export_commands::export_ssh_config,
             commands::export_commands::get_default_export_path,
+            commands::remote_sync_commands::sync_to_remote,
+            commands::remote_sync_commands::test_remote_connection,
         ])
         .run(context)
         .expect("error while running tauri application");
