@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Server, Folder, FolderOpen, Download, Upload, RefreshCw, Wrench, Plus, Trash2 } from 'lucide-react';
+import { ServerIcon, FolderIcon, FolderOpenIcon, PlusIcon, TrashIcon } from './Icons';
 
 interface Group {
   id: string;
   name: string;
   icon?: string;
+  color?: string;
 }
 
 interface SidebarProps {
@@ -18,17 +19,32 @@ interface SidebarProps {
 
 const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onGroupChange }: SidebarProps) => {
   const [groups, setGroups] = useState<Group[]>([]);
+  const [hostCount, setHostCount] = useState(0);
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupColor, setNewGroupColor] = useState('#4f46e5');
   const [savingGroup, setSavingGroup] = useState(false);
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
+
+  const GROUP_COLORS = [
+    '#4f46e5', // 靛蓝
+    '#0891b2', // 青色
+    '#059669', // 绿色
+    '#d97706', // 橙色
+    '#dc2626', // 红色
+    '#7c3aed', // 紫色
+    '#db2777', // 粉色
+    '#65a30d', // 草绿
+  ];
 
   const loadGroups = () => {
     invoke<Group[]>('get_groups')
       .then(setGroups)
       .catch(console.error);
+    invoke<any[]>('get_hosts')
+      .then(h => setHostCount(h.length))
+      .catch(() => {});
   };
 
   useEffect(loadGroups, [refreshTrigger]);
@@ -50,12 +66,13 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
           name,
           parentId: null,
           icon: null,
-          color: null,
+          color: newGroupColor,
           order: groups.length,
           children: null,
         }
       });
       setNewGroupName('');
+      setNewGroupColor('#4f46e5');
       setAddingGroup(false);
       loadGroups();
       onGroupChange?.();
@@ -76,20 +93,6 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
       onGroupChange?.();
     } catch (e) {
       alert('删除分组失败: ' + e);
-    }
-  };
-
-  const handleImport = async () => {
-    if (importing) return;
-    setImporting(true);
-    try {
-      const result = await invoke<string>('import_ssh_config');
-      alert(result);
-      onGroupChange?.();
-    } catch (e) {
-      alert('导入失败: ' + e);
-    } finally {
-      setImporting(false);
     }
   };
 
@@ -135,8 +138,15 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
           onMouseEnter={e => { if (selectedGroupId !== null) e.currentTarget.style.background = hoverBg; }}
           onMouseLeave={e => { if (selectedGroupId !== null) e.currentTarget.style.background = 'transparent'; }}
         >
-          <Server size={16} style={{ color: selectedGroupId === null ? activeColor : mutedColor }} />
-          全部主机
+          <ServerIcon size={16} style={{ color: selectedGroupId === null ? activeColor : mutedColor }} />
+          <span style={{ flex: 1 }}>全部主机</span>
+          <span style={{
+            fontSize: '11px',
+            padding: '2px 6px',
+            borderRadius: '10px',
+            background: selectedGroupId === null ? (darkMode ? '#312e81' : '#eef2ff') : (darkMode ? '#374151' : '#e5e7eb'),
+            color: selectedGroupId === null ? activeColor : mutedColor,
+          }}>{hostCount}</span>
         </button>
 
         {/* 分组列表 */}
@@ -158,7 +168,7 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
               onMouseEnter={e => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = '#4f46e5'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = mutedColor; }}
             >
-              <Plus size={14} />
+              <PlusIcon size={14} />
             </button>
           </div>
 
@@ -170,22 +180,41 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
                 value={newGroupName}
                 onChange={e => setNewGroupName(e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === 'Enter') handleAddGroup();
-                  if (e.key === 'Escape') { setAddingGroup(false); setNewGroupName(''); }
+                  if (e.key === 'Enter' && !savingGroup) handleAddGroup();
+                  if (e.key === 'Escape') { setAddingGroup(false); setNewGroupName(''); setNewGroupColor('#4f46e5'); }
                 }}
-                onBlur={() => { if (!savingGroup) { setAddingGroup(false); setNewGroupName(''); } }}
-                placeholder="分组名称..."
+                disabled={savingGroup}
+                placeholder={savingGroup ? '创建中...' : '分组名称...'}
                 style={{
                   width: '100%', padding: '6px 10px', borderRadius: '7px',
-                  border: `1px solid #4f46e5`,
+                  border: `1px solid ${newGroupColor}`,
                   background: darkMode ? '#0f172a' : '#f8fafc',
                   color: darkMode ? '#e2e8f0' : '#1a1a2e',
                   fontSize: '13px', outline: 'none',
                   boxSizing: 'border-box',
+                  opacity: savingGroup ? 0.7 : 1,
                 }}
               />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                <span style={{ fontSize: '11px', color: mutedColor }}>颜色：</span>
+                {GROUP_COLORS.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => !savingGroup && setNewGroupColor(color)}
+                    disabled={savingGroup}
+                    style={{
+                      width: '18px', height: '18px', borderRadius: '50%',
+                      background: color,
+                      border: newGroupColor === color ? '2px solid white' : '2px solid transparent',
+                      boxShadow: newGroupColor === color ? `0 0 0 1px ${color}` : 'none',
+                      cursor: savingGroup ? 'not-allowed' : 'pointer', padding: 0,
+                      opacity: savingGroup ? 0.5 : 1,
+                    }}
+                  />
+                ))}
+              </div>
               <div style={{ fontSize: '11px', color: mutedColor, marginTop: '3px', paddingLeft: '2px' }}>
-                Enter 确认 · Esc 取消
+                {savingGroup ? '创建中...' : 'Enter 确认 · Esc 取消'}
               </div>
             </div>
           )}
@@ -204,10 +233,16 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
                 onMouseLeave={e => { if (selectedGroupId !== group.id) e.currentTarget.style.background = 'transparent'; }}
               >
                 {selectedGroupId === group.id
-                  ? <FolderOpen size={16} style={{ color: activeColor }} />
-                  : <Folder size={16} style={{ color: mutedColor }} />
+                  ? <FolderOpenIcon size={16} style={{ color: group.color || activeColor }} />
+                  : <FolderIcon size={16} style={{ color: group.color || mutedColor }} />
                 }
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.name}</span>
+                <span style={{
+                  flex: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  color: group.color || 'inherit',
+                }}>{group.name}</span>
               </button>
               {/* 删除按钮 */}
               {hoveredGroupId === group.id && (
@@ -225,7 +260,7 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
                   onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#fca5a5'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = darkMode ? '#2d3748' : '#f1f5f9'; e.currentTarget.style.borderColor = 'transparent'; }}
                 >
-                  <Trash2 size={12} />
+                  <TrashIcon size={12} />
                 </button>
               )}
             </div>
@@ -236,31 +271,6 @@ const Sidebar = ({ darkMode, selectedGroupId, onSelectGroup, refreshTrigger, onG
               暂无分组，点击 + 新建
             </div>
           )}
-        </div>
-
-        {/* 工具区域 */}
-        <div style={{ marginTop: '16px', borderTop: `1px solid ${border}`, paddingTop: '12px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: mutedColor, padding: '4px 12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            工具
-          </div>
-          {[
-            { icon: <Download size={16} color={importing ? '#9ca3af' : undefined} />, label: importing ? '导入中...' : '导入配置', onClick: handleImport },
-            { icon: <Upload size={16} />, label: '导出配置', onClick: () => {} },
-            { icon: <RefreshCw size={16} />, label: '同步状态', onClick: () => {} },
-            { icon: <Wrench size={16} />, label: '工具', onClick: () => {} },
-          ].map(item => (
-            <button
-              key={item.label}
-              onClick={item.onClick}
-              disabled={importing && item.label.includes('导入')}
-              style={{ ...itemStyle(false), color: mutedColor, opacity: importing && item.label.includes('导入') ? 0.6 : 1 }}
-              onMouseEnter={e => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = 'inherit'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = mutedColor; }}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
         </div>
       </div>
     </div>

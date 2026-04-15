@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
-import { useState, useCallback } from 'react';
-import { RefreshCw, Settings, Moon, Sun, Plus } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { save } from '@tauri-apps/plugin-dialog';
+import { RefreshCwIcon, SettingsIcon, PlusIcon, XIcon, DownloadIcon, UploadIcon } from './components/Icons';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import StatusBar from './components/StatusBar';
@@ -8,12 +9,28 @@ import AddHostDialog from './components/AddHostDialog';
 import './App.css';
 
 function App() {
-  const [darkMode, setDarkMode] = useState(false);
+  // 基于系统主题自动检测
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  // 监听系统主题变化
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => setDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -24,6 +41,61 @@ function App() {
       alert('同步失败: ' + e);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const result = await invoke<string>('import_ssh_config');
+      alert(result);
+      setRefreshTrigger(t => t + 1);
+    } catch (e) {
+      alert('导入失败: ' + e);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleExport = async (format: 'json' | 'toml' | 'ssh') => {
+    try {
+      const extensions: Record<string, string[]> = {
+        json: ['json'],
+        toml: ['toml'],
+        ssh: ['config'],
+      };
+      const defaultNames: Record<string, string> = {
+        json: 'ssh-hosts-export.json',
+        toml: 'ssh-hosts-export.toml',
+        ssh: 'ssh-config-export',
+      };
+
+      const filePath = await save({
+        defaultPath: defaultNames[format],
+        filters: [{
+          name: format.toUpperCase(),
+          extensions: extensions[format],
+        }],
+      });
+
+      if (!filePath) return;
+
+      let result: string;
+      switch (format) {
+        case 'json':
+          result = await invoke<string>('export_json', { path: filePath });
+          break;
+        case 'toml':
+          result = await invoke<string>('export_toml', { path: filePath });
+          break;
+        case 'ssh':
+          result = await invoke<string>('export_ssh_config', { path: filePath });
+          break;
+      }
+      alert(result);
+    } catch (e) {
+      alert('导出失败: ' + e);
     }
   };
 
@@ -96,46 +168,12 @@ function App() {
           onMouseEnter={e => (e.currentTarget.style.background = '#4338ca')}
           onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}
         >
-          <Plus size={16} />
+          <PlusIcon size={16} />
           新增主机
         </button>
 
         <button
-          onClick={handleSync}
-          disabled={syncing}
-          title="同步到 ~/.ssh/config"
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            padding: '7px 14px',
-            background: darkMode ? '#2d3748' : '#f1f5f9',
-            borderRadius: '8px',
-            fontSize: '14px',
-            border: `1px solid ${darkMode ? '#4a5568' : '#e2e8f0'}`,
-            color: 'inherit',
-            transition: 'background 0.2s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = darkMode ? '#4a5568' : '#e2e8f0')}
-          onMouseLeave={e => (e.currentTarget.style.background = darkMode ? '#2d3748' : '#f1f5f9')}
-        >
-          <RefreshCw size={16} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
-          同步
-        </button>
-
-        <button
-          onClick={() => setDarkMode(d => !d)}
-          title={darkMode ? '切换浅色模式' : '切换深色模式'}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '36px', height: '36px',
-            background: darkMode ? '#2d3748' : '#f1f5f9',
-            borderRadius: '8px',
-            border: `1px solid ${darkMode ? '#4a5568' : '#e2e8f0'}`,
-          }}
-        >
-          {darkMode ? <Sun size={16} color="#f59e0b" /> : <Moon size={16} color="#475569" />}
-        </button>
-
-        <button
+          onClick={() => setShowSettingsDialog(true)}
           title="设置"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -144,9 +182,10 @@ function App() {
             borderRadius: '8px',
             border: `1px solid ${darkMode ? '#4a5568' : '#e2e8f0'}`,
             color: 'inherit',
+            cursor: 'pointer',
           }}
         >
-          <Settings size={16} color={darkMode ? '#94a3b8' : '#475569'} />
+          <SettingsIcon size={16} color={darkMode ? '#94a3b8' : '#475569'} />
         </button>
       </div>
 
@@ -176,6 +215,146 @@ function App() {
         onSuccess={handleHostAdded}
         darkMode={darkMode}
       />
+
+      {/* 设置对话框 */}
+      {showSettingsDialog && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowSettingsDialog(false); }}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(2px)',
+          }}
+        >
+          <div style={{
+            background: darkMode ? '#1e2a3a' : '#ffffff',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '400px',
+            maxWidth: '90vw',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            border: `1px solid ${darkMode ? '#2d3748' : '#e2e8f0'}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <span style={{ fontSize: '17px', fontWeight: 600 }}>设置</span>
+              <button
+                onClick={() => setShowSettingsDialog(false)}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: darkMode ? '#2d3748' : '#f1f5f9',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: darkMode ? '#94a3b8' : '#64748b', cursor: 'pointer', border: 'none',
+                }}
+              >
+                <XIcon size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* 同步配置 */}
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '14px 16px',
+                  background: darkMode ? '#0f172a' : '#f8fafc',
+                  borderRadius: '10px',
+                  border: `1px solid ${darkMode ? '#2d3748' : '#e2e8f0'}`,
+                  cursor: syncing ? 'not-allowed' : 'pointer',
+                  opacity: syncing ? 0.7 : 1,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => !syncing && (e.currentTarget.style.background = darkMode ? '#1e293b' : '#f1f5f9')}
+                onMouseLeave={e => (e.currentTarget.style.background = darkMode ? '#0f172a' : '#f8fafc')}
+              >
+                <RefreshCwIcon size={20} color="#4f46e5" style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+                <div style={{ flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: darkMode ? '#e2e8f0' : '#1a1a2e' }}>
+                    {syncing ? '同步中...' : '同步配置'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: darkMode ? '#94a3b8' : '#64748b' }}>
+                    将主机配置同步到 ~/.ssh/config
+                  </div>
+                </div>
+              </button>
+
+              {/* 导入配置 */}
+              <button
+                onClick={handleImport}
+                disabled={importing}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '14px 16px',
+                  background: darkMode ? '#0f172a' : '#f8fafc',
+                  borderRadius: '10px',
+                  border: `1px solid ${darkMode ? '#2d3748' : '#e2e8f0'}`,
+                  cursor: importing ? 'not-allowed' : 'pointer',
+                  opacity: importing ? 0.7 : 1,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => !importing && (e.currentTarget.style.background = darkMode ? '#1e293b' : '#f1f5f9')}
+                onMouseLeave={e => (e.currentTarget.style.background = darkMode ? '#0f172a' : '#f8fafc')}
+              >
+                <DownloadIcon size={20} color="#0891b2" />
+                <div style={{ flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: darkMode ? '#e2e8f0' : '#1a1a2e' }}>
+                    {importing ? '导入中...' : '导入配置'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: darkMode ? '#94a3b8' : '#64748b' }}>
+                    从 ~/.ssh/config 导入主机配置
+                  </div>
+                </div>
+              </button>
+
+              {/* 导出配置 */}
+              <div style={{
+                padding: '14px 16px',
+                background: darkMode ? '#0f172a' : '#f8fafc',
+                borderRadius: '10px',
+                border: `1px solid ${darkMode ? '#2d3748' : '#e2e8f0'}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <UploadIcon size={20} color="#059669" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '14px', fontWeight: 500, color: darkMode ? '#e2e8f0' : '#1a1a2e' }}>
+                      导出配置
+                    </div>
+                    <div style={{ fontSize: '12px', color: darkMode ? '#94a3b8' : '#64748b' }}>
+                      选择导出格式
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[
+                    { label: 'JSON', format: 'json' as const, color: '#f59e0b' },
+                    { label: 'TOML', format: 'toml' as const, color: '#7c3aed' },
+                    { label: 'SSH Config', format: 'ssh' as const, color: '#4f46e5' },
+                  ].map(opt => (
+                    <button
+                      key={opt.format}
+                      onClick={() => handleExport(opt.format)}
+                      style={{
+                        flex: 1, padding: '8px 12px',
+                        borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+                        background: opt.color, color: 'white',
+                        border: 'none', cursor: 'pointer',
+                        transition: 'opacity 0.15s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

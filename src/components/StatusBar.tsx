@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Server, Folder, CheckCircle, Clock } from 'lucide-react';
+import { ServerIcon, FolderIcon } from './Icons';
 
 interface StatusBarProps {
   darkMode: boolean;
@@ -10,7 +10,6 @@ interface StatusBarProps {
 const StatusBar = ({ darkMode, refreshTrigger }: StatusBarProps) => {
   const [hostCount, setHostCount] = useState(0);
   const [groupCount, setGroupCount] = useState(0);
-  const [lastSync] = useState('未同步');
 
   useEffect(() => {
     invoke<any[]>('get_hosts').then(h => setHostCount(h.length)).catch(() => {});
@@ -38,21 +37,16 @@ const StatusBar = ({ darkMode, refreshTrigger }: StatusBarProps) => {
       borderTop: `1px solid ${border}`,
       fontSize: '12px',
     }}>
-      <Item icon={<Server size={13} color={color} />} label={`${hostCount} 台主机`} />
-      <Item icon={<Folder size={13} color={color} />} label={`${groupCount} 个分组`} />
-      <Item icon={<CheckCircle size={13} color="#10b981" />} label="已就绪" />
+      <Item icon={<ServerIcon size={13} color={color} />} label={`${hostCount} 台主机`} />
+      <Item icon={<FolderIcon size={13} color={color} />} label={`${groupCount} 个分组`} />
       <div style={{ flex: 1 }} />
-      <Item icon={<Clock size={13} color={color} />} label={lastSync} />
       <div style={{
         fontSize: '11px',
         color: darkMode ? '#374151' : '#cbd5e1',
-        borderLeft: `1px solid ${border}`,
-        paddingLeft: '12px',
-        marginLeft: '4px',
         fontFamily: 'monospace',
         letterSpacing: '0.03em',
       }}>
-        v{__APP_VERSION__}-beta · {__GIT_COMMIT__}
+        v{__APP_VERSION__}-beta
       </div>
     </div>
   );

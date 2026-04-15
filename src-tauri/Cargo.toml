@@ -33,4 +33,5 @@ anyhow = "1.0.82"
 thiserror = "1.0.59"
 directories = "5.0.1"
 tauri-plugin-shell = "2.3.5"
+tauri-plugin-dialog = "2"
 

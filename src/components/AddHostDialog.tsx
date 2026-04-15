@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { X, Server } from 'lucide-react';
+import { XIcon, ServerIcon } from './Icons';
 
 interface Group {
   id: string;
@@ -129,7 +129,7 @@ const AddHostDialog = ({ open, onClose, onSuccess, darkMode }: AddHostDialogProp
               background: darkMode ? '#312e81' : '#eef2ff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Server size={18} color="#4f46e5" />
+              <ServerIcon size={18} color="#4f46e5" />
             </div>
             <span style={{ fontSize: '17px', fontWeight: 600 }}>新增主机</span>
           </div>
@@ -142,7 +142,7 @@ const AddHostDialog = ({ open, onClose, onSuccess, darkMode }: AddHostDialogProp
               color: labelColor, cursor: 'pointer', border: 'none',
             }}
           >
-            <X size={16} />
+            <XIcon size={16} />
           </button>
         </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Server, Copy, Terminal, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { ServerIcon, CopyIcon, TerminalIcon, EditIcon, TrashIcon, EyeIcon, EyeOffIcon } from './Icons';
 
 interface HostConfig {
   id: string;
@@ -95,7 +95,7 @@ const HostCard = ({
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
-          <Server size={18} color="#4f46e5" />
+          <ServerIcon size={18} color="#4f46e5" />
         </div>
         <div style={{ overflow: 'hidden' }}>
           <div style={{ fontWeight: 600, fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -147,18 +147,18 @@ const HostCard = ({
         }}
       >
         {host.showInVscode
-          ? <Eye size={11} color="#16a34a" />
-          : <EyeOff size={11} color={darkMode ? '#4b5563' : '#9ca3af'} />
+          ? <EyeIcon size={11} color="#16a34a" />
+          : <EyeOffIcon size={11} color={darkMode ? '#4b5563' : '#9ca3af'} />
         }
         VS Code {host.showInVscode ? '显示中' : '已隐藏'}
       </div>
 
       {/* 操作按钮 */}
       <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-        <ActionButton icon={<Terminal size={14} />} label="启动" color="#4f46e5" darkMode={darkMode} onClick={() => {}} />
-        <ActionButton icon={<Copy size={14} />} label="复制" color="#0ea5e9" darkMode={darkMode} onClick={copySSHCommand} />
-        <ActionButton icon={<Edit2 size={14} />} label="编辑" color="#f59e0b" darkMode={darkMode} onClick={() => {}} />
-        <ActionButton icon={<Trash2 size={14} />} label="删除" color="#ef4444" darkMode={darkMode} onClick={handleDelete} />
+        <ActionButton icon={<TerminalIcon size={14} />} label="启动" color="#4f46e5" darkMode={darkMode} onClick={() => {}} />
+        <ActionButton icon={<CopyIcon size={14} />} label="复制" color="#0ea5e9" darkMode={darkMode} onClick={copySSHCommand} />
+        <ActionButton icon={<EditIcon size={14} />} label="编辑" color="#f59e0b" darkMode={darkMode} onClick={() => {}} />
+        <ActionButton icon={<TrashIcon size={14} />} label="删除" color="#ef4444" darkMode={darkMode} onClick={handleDelete} />
       </div>
     </div>
   );
@@ -234,7 +234,7 @@ const MainContent = ({ darkMode, searchQuery, selectedGroupId, refreshTrigger, o
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           height: '100%', gap: '16px', color: darkMode ? '#4b5563' : '#9ca3af',
         }}>
-          <Server size={48} strokeWidth={1} />
+          <ServerIcon size={48} strokeWidth={1} />
           <div style={{ fontSize: '16px', fontWeight: 500 }}>
             {searchQuery ? '没有找到匹配的主机' : '暂无主机，点击「新增主机」开始添加'}
           </div>

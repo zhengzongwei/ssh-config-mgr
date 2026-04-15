@@ -15,6 +15,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::host_commands::get_hosts,
             commands::host_commands::add_host,
@@ -27,6 +28,10 @@ pub fn run() {
             commands::group_commands::delete_group,
             commands::sync_commands::sync_ssh_config,
             commands::import_commands::import_ssh_config,
+            commands::export_commands::export_json,
+            commands::export_commands::export_toml,
+            commands::export_commands::export_ssh_config,
+            commands::export_commands::get_default_export_path,
         ])
         .run(context)
         .expect("error while running tauri application");
